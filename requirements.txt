@@ -1,0 +1,6 @@
+telethon
+gemenai
+python-dotenv
+Flask
+flask-cors
+gunicorn
