@@ -3,8 +3,10 @@ from flask_cors import CORS
 import os
 import json
 
+
 app = Flask(__name__)
 CORS(app)
+
 
 DATA_FILE = "data.json"
 
@@ -19,7 +21,8 @@ def load_data():
 
         return {
             "enabled": False,
-            "exceptions": []
+            "exceptions": [],
+            "users": []
         }
 
     try:
@@ -30,13 +33,33 @@ def load_data():
             encoding="utf-8"
         ) as file:
 
-            return json.load(file)
+            data = json.load(file)
+
+
+        # Если старый data.json
+        # ещё не содержит users
+
+        if "users" not in data:
+            data["users"] = []
+
+
+        if "exceptions" not in data:
+            data["exceptions"] = []
+
+
+        if "enabled" not in data:
+            data["enabled"] = False
+
+
+        return data
+
 
     except Exception:
 
         return {
             "enabled": False,
-            "exceptions": []
+            "exceptions": [],
+            "users": []
         }
 
 
@@ -67,7 +90,10 @@ data = load_data()
 # СТАТУС
 # =========================
 
-@app.route("/status", methods=["GET"])
+@app.route(
+    "/status",
+    methods=["GET"]
+)
 def get_status():
 
     return jsonify({
@@ -79,12 +105,18 @@ def get_status():
 # ВКЛ / ВЫКЛ
 # =========================
 
-@app.route("/toggle", methods=["POST"])
+@app.route(
+    "/toggle",
+    methods=["POST"]
+)
 def toggle():
 
-    request_data = request.get_json(
-        silent=True
-    ) or {}
+    request_data = (
+        request.get_json(
+            silent=True
+        ) or {}
+    )
+
 
     if "enabled" in request_data:
 
@@ -94,35 +126,49 @@ def toggle():
 
         save_data()
 
+
     return jsonify({
         "enabled": data["enabled"]
     })
 
 
 # =========================
-# ПОЛУЧИТЬ ИСКЛЮЧЕНИЯ
+# ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЕЙ
 # =========================
 
-@app.route("/exceptions", methods=["GET"])
-def get_exceptions():
+@app.route(
+    "/users",
+    methods=["GET"]
+)
+def get_users():
 
     return jsonify({
-        "exceptions": data["exceptions"]
+        "users": data["users"]
     })
 
 
 # =========================
-# ДОБАВИТЬ ID
+# ДОБАВИТЬ / ОБНОВИТЬ
+# ПОЛЬЗОВАТЕЛЯ
 # =========================
 
-@app.route("/exceptions", methods=["POST"])
-def add_exception():
+@app.route(
+    "/users",
+    methods=["POST"]
+)
+def add_user():
 
-    request_data = request.get_json(
-        silent=True
-    ) or {}
+    request_data = (
+        request.get_json(
+            silent=True
+        ) or {}
+    )
 
-    telegram_id = request_data.get("id")
+
+    telegram_id = request_data.get(
+        "id"
+    )
+
 
     if telegram_id is None:
 
@@ -131,11 +177,17 @@ def add_exception():
             "error": "Telegram ID не указан"
         }), 400
 
+
     try:
 
-        telegram_id = int(telegram_id)
+        telegram_id = int(
+            telegram_id
+        )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         return jsonify({
             "success": False,
@@ -143,7 +195,127 @@ def add_exception():
         }), 400
 
 
-    # Проверяем, нет ли уже такого ID
+    first_name = request_data.get(
+        "first_name",
+        ""
+    )
+
+
+    last_name = request_data.get(
+        "last_name",
+        ""
+    )
+
+
+    username = request_data.get(
+        "username",
+        ""
+    )
+
+
+    # Проверяем, есть ли уже такой пользователь
+
+    for user in data["users"]:
+
+        if user["id"] == telegram_id:
+
+            user["first_name"] = first_name
+            user["last_name"] = last_name
+            user["username"] = username
+
+            save_data()
+
+            return jsonify({
+                "success": True,
+                "user": user
+            })
+
+
+    # Новый пользователь
+
+    user = {
+        "id": telegram_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username
+    }
+
+
+    data["users"].append(
+        user
+    )
+
+
+    save_data()
+
+
+    return jsonify({
+        "success": True,
+        "user": user
+    })
+
+
+# =========================
+# ИСКЛЮЧЕНИЯ
+# =========================
+
+@app.route(
+    "/exceptions",
+    methods=["GET"]
+)
+def get_exceptions():
+
+    return jsonify({
+        "exceptions": data["exceptions"]
+    })
+
+
+# =========================
+# ДОБАВИТЬ ИСКЛЮЧЕНИЕ
+# =========================
+
+@app.route(
+    "/exceptions",
+    methods=["POST"]
+)
+def add_exception():
+
+    request_data = (
+        request.get_json(
+            silent=True
+        ) or {}
+    )
+
+
+    telegram_id = request_data.get(
+        "id"
+    )
+
+
+    if telegram_id is None:
+
+        return jsonify({
+            "success": False,
+            "error": "Telegram ID не указан"
+        }), 400
+
+
+    try:
+
+        telegram_id = int(
+            telegram_id
+        )
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        return jsonify({
+            "success": False,
+            "error": "Telegram ID должен быть числом"
+        }), 400
+
 
     for user in data["exceptions"]:
 
@@ -159,6 +331,7 @@ def add_exception():
         "id": telegram_id
     })
 
+
     save_data()
 
 
@@ -169,17 +342,26 @@ def add_exception():
 
 
 # =========================
-# УДАЛИТЬ ID
+# УДАЛИТЬ ИСКЛЮЧЕНИЕ
 # =========================
 
-@app.route("/exceptions", methods=["DELETE"])
+@app.route(
+    "/exceptions",
+    methods=["DELETE"]
+)
 def delete_exception():
 
-    request_data = request.get_json(
-        silent=True
-    ) or {}
+    request_data = (
+        request.get_json(
+            silent=True
+        ) or {}
+    )
 
-    telegram_id = request_data.get("id")
+
+    telegram_id = request_data.get(
+        "id"
+    )
+
 
     if telegram_id is None:
 
@@ -188,11 +370,17 @@ def delete_exception():
             "error": "Telegram ID не указан"
         }), 400
 
+
     try:
 
-        telegram_id = int(telegram_id)
+        telegram_id = int(
+            telegram_id
+        )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         return jsonify({
             "success": False,
@@ -200,7 +388,10 @@ def delete_exception():
         }), 400
 
 
-    old_length = len(data["exceptions"])
+    old_length = len(
+        data["exceptions"]
+    )
+
 
     data["exceptions"] = [
         user
@@ -227,17 +418,26 @@ def delete_exception():
 
 
 # =========================
-# ПРОВЕРКА ID
+# ПРОВЕРКА ИСКЛЮЧЕНИЯ
 # =========================
 
-@app.route("/exceptions/check", methods=["POST"])
+@app.route(
+    "/exceptions/check",
+    methods=["POST"]
+)
 def check_exception():
 
-    request_data = request.get_json(
-        silent=True
-    ) or {}
+    request_data = (
+        request.get_json(
+            silent=True
+        ) or {}
+    )
 
-    telegram_id = request_data.get("id")
+
+    telegram_id = request_data.get(
+        "id"
+    )
+
 
     if telegram_id is None:
 
@@ -248,9 +448,14 @@ def check_exception():
 
     try:
 
-        telegram_id = int(telegram_id)
+        telegram_id = int(
+            telegram_id
+        )
 
-    except (TypeError, ValueError):
+    except (
+        TypeError,
+        ValueError
+    ):
 
         return jsonify({
             "excluded": False
@@ -290,6 +495,7 @@ if __name__ == "__main__":
             5000
         )
     )
+
 
     app.run(
         host="0.0.0.0",
