@@ -1,4 +1,4 @@
-```javascript
+javascript
 const tg = window.Telegram.WebApp;
 
 tg.ready();
@@ -652,4 +652,3 @@ document
 updateStatus();
 
 loadStatus();
-```
