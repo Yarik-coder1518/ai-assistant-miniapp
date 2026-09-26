@@ -1,51 +1,75 @@
+```javascript
 const tg = window.Telegram.WebApp;
 
 tg.ready();
 tg.expand();
 
-const SERVER_URL = "https://ai-assistant-miniapp-2.onrender.com";
+const SERVER_URL =
+    "https://ai-assistant-miniapp-2.onrender.com";
 
-const toggleButton = document.getElementById("toggleButton");
-const statusText = document.getElementById("statusText");
+const toggleButton =
+    document.getElementById("toggleButton");
+
+const statusText =
+    document.getElementById("statusText");
 
 let enabled = false;
 
 
 // =========================
-// СТАТУС АВТООТВЕТЧИКА
+// СТАТУС
 // =========================
 
 function updateStatus() {
+
     if (enabled) {
-        statusText.textContent = "Автоответчик включён";
-        toggleButton.textContent = "ВЫКЛЮЧИТЬ";
+
+        statusText.textContent =
+            "Автоответчик включён";
+
+        toggleButton.textContent =
+            "ВЫКЛЮЧИТЬ";
+
     } else {
-        statusText.textContent = "Автоответчик выключен";
-        toggleButton.textContent = "ВКЛЮЧИТЬ";
+
+        statusText.textContent =
+            "Автоответчик выключен";
+
+        toggleButton.textContent =
+            "ВКЛЮЧИТЬ";
     }
 }
 
 
 async function loadStatus() {
-    try {
-        const response = await fetch(
-            SERVER_URL + "/status"
-        );
 
-        const data = await response.json();
+    try {
+
+        const response =
+            await fetch(
+                SERVER_URL + "/status"
+            );
+
+        const data =
+            await response.json();
 
         enabled = data.enabled;
 
         updateStatus();
 
     } catch (error) {
+
         console.error(
-            "Ошибка подключения:",
+            "Ошибка загрузки статуса:",
             error
         );
     }
 }
 
+
+// =========================
+// ВКЛ / ВЫКЛ
+// =========================
 
 async function toggleAssistant() {
 
@@ -53,31 +77,32 @@ async function toggleAssistant() {
 
     try {
 
-        const response = await fetch(
-            SERVER_URL + "/toggle",
-            {
-                method: "POST",
+        const response =
+            await fetch(
+                SERVER_URL + "/toggle",
+                {
+                    method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
-                    enabled: newState
-                })
-            }
-        );
+                    body: JSON.stringify({
+                        enabled: newState
+                    })
+                }
+            );
 
-        const data = await response.json();
+        const data =
+            await response.json();
 
         enabled = data.enabled;
 
         updateStatus();
 
-        tg.HapticFeedback.impactOccurred(
-            "light"
-        );
+        tg.HapticFeedback
+            .impactOccurred("light");
 
     } catch (error) {
 
@@ -108,73 +133,32 @@ function showExceptionsScreen() {
     const container =
         document.querySelector(".container");
 
-    container.innerHTML = `
+    container.innerHTML =
+        '<header>' +
 
-        <header>
+            '<button id="backButton" ' +
+            'class="back-button">' +
+                '‹' +
+            '</button>' +
 
-            <button
-                id="backButton"
-                class="back-button"
-            >
-                ‹
-            </button>
+            '<div>' +
+                '<h1>Исключения</h1>' +
+                '<p>Кому AI не отвечает</p>' +
+            '</div>' +
 
-            <div>
-                <h1>Исключения</h1>
+        '</header>' +
 
-                <p>
-                    Кому AI не отвечает
-                </p>
-            </div>
+        '<section class="section">' +
 
-        </header>
+            '<h2>Люди</h2>' +
 
+            '<div id="usersList">' +
+                '<div class="loading">' +
+                    'Загрузка...' +
+                '</div>' +
+            '</div>' +
 
-        <section class="info-card">
-
-            <h3>
-                Добавить пользователя
-            </h3>
-
-            <p>
-                Введи Telegram ID человека,
-                которому AI не должен отвечать.
-            </p>
-
-            <input
-                id="telegramIdInput"
-                class="telegram-input"
-                type="number"
-                placeholder="Например: 123456789"
-            >
-
-            <button
-                id="addExceptionButton"
-                class="primary-button"
-            >
-                Добавить
-            </button>
-
-        </section>
-
-
-        <section class="section">
-
-            <h2>
-                Список исключений
-            </h2>
-
-            <div id="exceptionsList">
-
-                <div class="loading">
-                    Загрузка...
-                </div>
-
-            </div>
-
-        </section>
-
-    `;
+        '</section>';
 
 
     document
@@ -185,201 +169,305 @@ function showExceptionsScreen() {
         );
 
 
-    document
-        .getElementById("addExceptionButton")
-        .addEventListener(
-            "click",
-            addException
-        );
-
-
-    loadExceptions();
+    loadUsers();
 }
 
 
 // =========================
-// ЗАГРУЗКА ИСКЛЮЧЕНИЙ
+// ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ
 // =========================
 
-async function loadExceptions() {
+async function loadUsers() {
 
-    const list =
+    const usersList =
         document.getElementById(
-            "exceptionsList"
+            "usersList"
         );
+
 
     try {
 
-        const response = await fetch(
-            SERVER_URL + "/exceptions"
-        );
+        const usersResponse =
+            await fetch(
+                SERVER_URL + "/users"
+            );
 
-        const data =
-            await response.json();
+
+        const usersData =
+            await usersResponse.json();
+
+
+        const users =
+            usersData.users || [];
+
+
+        const exceptionsResponse =
+            await fetch(
+                SERVER_URL + "/exceptions"
+            );
+
+
+        const exceptionsData =
+            await exceptionsResponse.json();
+
 
         const exceptions =
-            data.exceptions || [];
+            exceptionsData.exceptions || [];
 
 
-        if (exceptions.length === 0) {
+        const exceptionIds =
+            exceptions.map(
+                function(user) {
+                    return Number(user.id);
+                }
+            );
 
-            list.innerHTML = `
 
-                <div class="empty-state">
+        if (users.length === 0) {
 
-                    <div class="empty-icon">
-                        👤
-                    </div>
+            usersList.innerHTML =
+                '<div class="empty-state">' +
 
-                    <strong>
-                        Исключений пока нет
-                    </strong>
+                    '<div class="empty-icon">' +
+                        '👤' +
+                    '</div>' +
 
-                    <small>
-                        AI отвечает всем пользователям
-                    </small>
+                    '<strong>' +
+                        'Пока нет пользователей' +
+                    '</strong>' +
 
-                </div>
+                    '<small>' +
+                        'Когда кто-нибудь напишет ' +
+                        'тебе, он появится здесь.' +
+                    '</small>' +
 
-            `;
+                '</div>';
 
             return;
         }
 
 
-        list.innerHTML = "";
+        usersList.innerHTML = "";
 
 
-        exceptions.forEach(
+        users.forEach(
             function(user) {
+
+                const id =
+                    Number(user.id);
+
+
+                const isExcluded =
+                    exceptionIds.includes(id);
+
+
+                let displayName =
+                    "Без имени";
+
+
+                if (user.first_name) {
+
+                    displayName =
+                        user.first_name;
+
+
+                    if (user.last_name) {
+
+                        displayName +=
+                            " " +
+                            user.last_name;
+                    }
+                }
+
 
                 const item =
                     document.createElement(
                         "div"
                     );
 
+
                 item.className =
-                    "exception-item";
+                    "user-item";
 
 
-                item.innerHTML = `
-
-                    <div>
-
-                        <strong>
-                            Telegram ID
-                        </strong>
-
-                        <small>
-                            ${user.id}
-                        </small>
-
-                    </div>
+                const userInfo =
+                    document.createElement(
+                        "div"
+                    );
 
 
-                    <button
-                        class="delete-button"
-                        data-id="${user.id}"
-                    >
-                        Удалить
-                    </button>
-
-                `;
+                userInfo.className =
+                    "user-info";
 
 
-                item
-                    .querySelector(
-                        ".delete-button"
-                    )
-                    .addEventListener(
+                const avatar =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                avatar.className =
+                    "user-avatar";
+
+
+                avatar.textContent =
+                    getInitial(displayName);
+
+
+                const textBlock =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                const nameElement =
+                    document.createElement(
+                        "strong"
+                    );
+
+
+                nameElement.textContent =
+                    displayName;
+
+
+                const usernameElement =
+                    document.createElement(
+                        "small"
+                    );
+
+
+                if (user.username) {
+
+                    usernameElement.textContent =
+                        "@" + user.username;
+
+                } else {
+
+                    usernameElement.textContent =
+                        "Telegram ID: " + id;
+                }
+
+
+                textBlock.appendChild(
+                    nameElement
+                );
+
+                textBlock.appendChild(
+                    usernameElement
+                );
+
+
+                userInfo.appendChild(
+                    avatar
+                );
+
+                userInfo.appendChild(
+                    textBlock
+                );
+
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                if (isExcluded) {
+
+                    button.className =
+                        "remove-exception-button";
+
+                    button.textContent =
+                        "Убрать";
+
+
+                    button.addEventListener(
                         "click",
                         function() {
 
-                            deleteException(
-                                user.id
-                            );
+                            deleteException(id);
 
                         }
                     );
 
+                } else {
 
-                list.appendChild(item);
+                    button.className =
+                        "add-exception-button";
+
+                    button.textContent =
+                        "Исключить";
+
+
+                    button.addEventListener(
+                        "click",
+                        function() {
+
+                            addException(id);
+
+                        }
+                    );
+                }
+
+
+                item.appendChild(
+                    userInfo
+                );
+
+                item.appendChild(
+                    button
+                );
+
+
+                usersList.appendChild(
+                    item
+                );
 
             }
         );
 
+
     } catch (error) {
 
         console.error(
-            "Ошибка загрузки исключений:",
+            "Ошибка загрузки пользователей:",
             error
         );
 
-        list.innerHTML = `
 
-            <div class="empty-state">
-
-                Не удалось загрузить список.
-
-            </div>
-
-        `;
+        usersList.innerHTML =
+            '<div class="empty-state">' +
+                'Не удалось загрузить ' +
+                'пользователей.' +
+            '</div>';
     }
 }
 
 
 // =========================
-// ДОБАВЛЕНИЕ ИСКЛЮЧЕНИЯ
+// ДОБАВИТЬ ИСКЛЮЧЕНИЕ
 // =========================
 
-async function addException() {
-
-    const input =
-        document.getElementById(
-            "telegramIdInput"
-        );
-
-    const id =
-        input.value.trim();
-
-
-    if (!id) {
-
-        tg.showAlert(
-            "Введи Telegram ID."
-        );
-
-        return;
-    }
-
-
-    if (!/^\d+$/.test(id)) {
-
-        tg.showAlert(
-            "Telegram ID должен состоять только из цифр."
-        );
-
-        return;
-    }
-
+async function addException(id) {
 
     try {
 
-        const response = await fetch(
-            SERVER_URL + "/exceptions",
-            {
-                method: "POST",
+        const response =
+            await fetch(
+                SERVER_URL + "/exceptions",
+                {
+                    method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
-                    id: Number(id)
-                })
-            }
-        );
+                    body: JSON.stringify({
+                        id: id
+                    })
+                }
+            );
 
 
         const data =
@@ -390,28 +478,27 @@ async function addException() {
 
             tg.showAlert(
                 data.error ||
-                "Не удалось добавить пользователя."
+                "Не удалось добавить исключение."
             );
 
             return;
         }
 
 
-        input.value = "";
-
-
         tg.HapticFeedback
             .impactOccurred("light");
 
 
-        await loadExceptions();
+        await loadUsers();
+
 
     } catch (error) {
 
         console.error(
-            "Ошибка добавления:",
+            "Ошибка добавления исключения:",
             error
         );
+
 
         tg.showAlert(
             "Не удалось подключиться к серверу."
@@ -421,28 +508,29 @@ async function addException() {
 
 
 // =========================
-// УДАЛЕНИЕ ИСКЛЮЧЕНИЯ
+// УДАЛИТЬ ИСКЛЮЧЕНИЕ
 // =========================
 
 async function deleteException(id) {
 
     try {
 
-        const response = await fetch(
-            SERVER_URL + "/exceptions",
-            {
-                method: "DELETE",
+        const response =
+            await fetch(
+                SERVER_URL + "/exceptions",
+                {
+                    method: "DELETE",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                body: JSON.stringify({
-                    id: Number(id)
-                })
-            }
-        );
+                    body: JSON.stringify({
+                        id: id
+                    })
+                }
+            );
 
 
         const data =
@@ -453,7 +541,7 @@ async function deleteException(id) {
 
             tg.showAlert(
                 data.error ||
-                "Не удалось удалить пользователя."
+                "Не удалось убрать исключение."
             );
 
             return;
@@ -464,14 +552,16 @@ async function deleteException(id) {
             .impactOccurred("light");
 
 
-        await loadExceptions();
+        await loadUsers();
+
 
     } catch (error) {
 
         console.error(
-            "Ошибка удаления:",
+            "Ошибка удаления исключения:",
             error
         );
+
 
         tg.showAlert(
             "Не удалось подключиться к серверу."
@@ -491,7 +581,24 @@ function showMainScreen() {
 
 
 // =========================
-// КНОПКИ ГЛАВНОГО ЭКРАНА
+// ПЕРВАЯ БУКВА
+// =========================
+
+function getInitial(name) {
+
+    if (!name) {
+        return "?";
+    }
+
+    return name
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+}
+
+
+// =========================
+// КНОПКА ИСКЛЮЧЕНИЙ
 // =========================
 
 document
@@ -501,6 +608,10 @@ document
         showExceptionsScreen
     );
 
+
+// =========================
+// СТИЛЬ
+// =========================
 
 document
     .getElementById("styleButton")
@@ -515,6 +626,10 @@ document
         }
     );
 
+
+// =========================
+// ПАМЯТЬ
+// =========================
 
 document
     .getElementById("memoryButton")
@@ -537,3 +652,4 @@ document
 updateStatus();
 
 loadStatus();
+```
